@@ -1,2 +1,3 @@
-.cp_embed/
+cp_embed/
 models_hub/
+src/__pycache__/
