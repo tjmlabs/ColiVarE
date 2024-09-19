@@ -2,3 +2,4 @@ colpali-engine==0.2.2
 transformers==4.41.1
 runpod==1.7.0
 tiktoken==0.7.0
+Pillow==10.4.0
