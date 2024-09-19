@@ -116,4 +116,4 @@ def handler(job):
     }
 
 
-# runpod.serverless.start({"handler": handler})
+runpod.serverless.start({"handler": handler})
