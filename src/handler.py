@@ -117,6 +117,9 @@ def score_documents(
         torch.tensor(doc["embeddings"], dtype=torch.float32) for doc in documents
     ]
 
+    # convert query_embeds for BFloat to float32
+    query_embeddings = query_embeddings.to(torch.float32)
+
     # Get normalized scores
     normalized_scores = normalized_score_multi_vector(query_embeddings, doc_embeddings)
 
