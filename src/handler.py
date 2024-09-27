@@ -83,7 +83,7 @@ def encode_query(queries):
     with torch.no_grad():
         query_embeddings = model(**batch_queries)
 
-    # we don't need to transform, because we are scoring and not sending back to the user
+    # we don't need to transform, because we may be scoring and not sending back to the user
     return query_embeddings, total_tokens
 
 
@@ -156,7 +156,22 @@ def handler(job):
                 "total_tokens": total_tokens,
             },
         }
-
+    elif job_input["task"] == "query":
+        query_embeddings, total_tokens = encode_query(job_input["input_data"])
+        results = []
+        for idx, embedding in enumerate(query_embeddings):
+            embedding = embedding.to(torch.float32).detach().cpu().numpy().tolist()
+            result = {"object": "embedding", "embedding": embedding, "index": idx}
+            results.append(result)
+        return {
+            "object": "list",
+            "data": results,
+            "model": "vidore/colpal-v1.2",
+            "usage": {
+                "prompt_tokens": total_tokens,
+                "total_tokens": total_tokens,
+            },
+        }
     elif job_input["task"] == "score":
         query_embeddings, total_tokens = encode_query(job_input["input_data"])
         # documents is a list of dictionaries containing 'id' and 'embeddings' keys
