@@ -1,6 +1,6 @@
 import base64
 from io import BytesIO
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 import runpod
 import torch
 from colpali_engine.models import ColPali, ColPaliProcessor
@@ -22,7 +22,7 @@ processor = ColPaliProcessor.from_pretrained(
 )
 
 
-def encode_image(input_data):
+def encode_image(input_data: List[str]) -> Tuple[List[Dict[str, Any]], int]:
     """
     Compute embeddings for one or more images
     Args:
@@ -61,7 +61,7 @@ def encode_image(input_data):
     return results, total_tokens
 
 
-def encode_query(queries):
+def encode_query(queries: List[str]) -> Tuple[torch.Tensor, int]:
     """
         Compute embeddings for one or more text queries.
         Args:
@@ -87,21 +87,6 @@ def encode_query(queries):
     return query_embeddings, total_tokens
 
 
-def normalized_score_multi_vector(
-    query_embeddings: List[torch.Tensor],
-    image_embeddings: List[torch.Tensor],
-    extra_tokens: int = 12,
-) -> torch.Tensor:
-    raw_scores = processor.score_multi_vector(query_embeddings, image_embeddings)
-    query_lengths = torch.tensor(
-        [q.shape[0] for q in query_embeddings], dtype=torch.float32
-    )
-    """https://github.com/illuin-tech/colpali/issues/64#issuecomment-2363005349"""
-    normalized_scores = raw_scores / (query_lengths + extra_tokens).unsqueeze(1)
-
-    return normalized_scores
-
-
 def score_documents(
     query_embeddings: List[torch.Tensor], documents: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
@@ -120,15 +105,15 @@ def score_documents(
     # convert query_embeds for BFloat to float32
     query_embeddings = query_embeddings.to(torch.float32)
 
-    # Get normalized scores
-    normalized_scores = normalized_score_multi_vector(query_embeddings, doc_embeddings)
+    # Get scores
+    raw_scores = processor.score_multi_vector(query_embeddings, doc_embeddings)
 
     # assert one query
-    assert len(normalized_scores) == 1, "Only one query is supported"
+    assert len(raw_scores) == 1, "Only one query is supported"
 
     # Format the output
     results = []
-    for i, score in enumerate(normalized_scores[0]):
+    for i, score in enumerate(raw_scores[0]):
         results.append(
             {
                 "id": documents[i]["id"],
@@ -139,17 +124,17 @@ def score_documents(
     return results
 
 
-def handler(job):
+def handler(job: Dict[str, Any]) -> Dict[str, Any]:
     job_input = job["input"]
     # job_input is a dictionary with the following keys:
     # - input_data: a list of base64 encoded images or text queries
     # - documents: a list of dictionaries containing 'id' and 'embeddings' keys. Only used for scoring
-    # - task: a string indicating the task to perform (either 'image' or 'score')
+    # - task: a string indicating the task to perform (either 'image' or 'score' or 'query')
     if job_input["task"] == "image":
         embeddings, total_tokens = encode_image(job_input["input_data"])
         return {
             "object": "list",
-            "data": embeddings,  # has to be a list of lists for scoring
+            "data": embeddings,
             "model": "vidore/colpal-v1.2",
             "usage": {
                 "prompt_tokens": total_tokens,

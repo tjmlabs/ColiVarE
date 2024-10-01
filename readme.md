@@ -2,13 +2,18 @@
 
 1. Run local image bash
 ```bash
-docker run -it --rm jonathanadly/colipali-embeddings:version /bin/bash
+docker run -it --rm jonathanadly/colipali-embeddings:version-local
 ```
 
-2. Build image
-version is usually date + iteration, e.g. 9.24.2024.0 
+2. Build cloud image
+version is usually date + version, e.g. 20240930-cloud or 20240930-local
 ```bash
-docker build --platform linux/amd64 --tag jonathanadly/colipali-embeddings:9.24.2024.0 .
+docker build --platform linux/amd64 --tag jonathanadly/colipali-embeddings:20240930-cloud .
+```
+
+3. Build local image
+```bash
+docker build -f Dockerfile.local --platform linux/amd64 --tag jonathanadly/colipali-embeddings:20240930-local .
 ```
 
 3. Test locally without docker 
