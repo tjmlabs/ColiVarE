@@ -1,24 +1,31 @@
 import base64
 from io import BytesIO
-from typing import List, Dict, Any, Tuple
+from typing import Any, Dict, List, Tuple
+
 import runpod
 import torch
-from colpali_engine.models import ColPali, ColPaliProcessor
+from colpali_engine.models import ColQwen2, ColQwen2Processor
 from PIL import Image
 
-device_map = "cuda" if torch.cuda.is_available() else None
+if torch.cuda.is_available():
+    device_map = "cuda"
+elif torch.backends.mps.is_available():
+    device_map = "mps"
+else:
+    device_map = None
 
-model = ColPali.from_pretrained(
-    "models_hub/models--vidore--colpali/snapshots/55e76ff047b92147638dbdd7aa541b721f794be1",
+model_name = "vidore/colqwen2-v0.1"
+model = ColQwen2.from_pretrained(
+    model_name,
+    local_files_only=True,
+    cache_dir="models_hub/",
     torch_dtype=torch.bfloat16,
     device_map=device_map,
-    local_files_only=True,
 )
 
 
-processor = ColPaliProcessor.from_pretrained(
-    "models_hub/models--google--paligemma-3b-mix-448/snapshots/ead2d9a35598cb89119af004f5d023b311d1c4a1",
-    local_files_only=True,
+processor = ColQwen2Processor.from_pretrained(
+    model_name, local_files_only=True, cache_dir="models_hub/"
 )
 
 
