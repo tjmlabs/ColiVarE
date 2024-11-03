@@ -2,7 +2,7 @@
 from colpali_engine.models import ColQwen2, ColQwen2Processor
 import torch
 
-model_name = "vidore/colqwen2-v0.1"  # or whatever model you want to download
+model_name = "manu/colqwen2-v0.2"  # or whatever model you want to download
 if torch.cuda.is_available():
     device_map = "cuda"
 elif torch.backends.mps.is_available():

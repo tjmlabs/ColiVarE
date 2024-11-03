@@ -66,4 +66,4 @@ docker push {org}/{repo}:version
 
 ## Hosting
 
-We use runpod serverless endpoint. The Docker image is hosted on Docker Hub. 
+We use runpod serverless endpoint. The Docker image is hosted on Docker Hub under: tjmlabs/colivare
