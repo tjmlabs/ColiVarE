@@ -14,7 +14,7 @@ elif torch.backends.mps.is_available():
 else:
     device_map = None
 
-model_name = "manu/colqwen2-v0.2"
+model_name = "vidore/colqwen2-v1.0"
 model = ColQwen2.from_pretrained(
     model_name,
     local_files_only=True,
