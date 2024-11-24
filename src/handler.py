@@ -113,16 +113,14 @@ def encode_image(input_data: List[str]) -> Tuple[List[Dict[str, Any]], int]:
     with torch.no_grad():
         image_embeddings = model(**batch_images)
 
-    # Compute total tokens
-    seq_length = image_embeddings.shape[1]  # Sequence length dimension
-    total_tokens = seq_length * len(input_data)
-
     results = []
     for idx, embedding in enumerate(image_embeddings):
         embedding = embedding.to(torch.float32)
         pooled = pool_embeddings(embedding)
         result = {"object": "embedding", "embedding": pooled, "index": idx}
         results.append(result)
+    # Compute total tokens
+    total_tokens = len(results) * len(pooled)
     return results, total_tokens
 
 
