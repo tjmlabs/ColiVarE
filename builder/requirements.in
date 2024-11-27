@@ -3,3 +3,4 @@ runpod==1.7.0
 Pillow==10.4.0
 setuptools==75.4.0
 scipy==1.14.1
+model2vec==0.3.3

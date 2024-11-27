@@ -6,7 +6,7 @@ import runpod
 import torch
 from colpali_engine.models import ColQwen2, ColQwen2Processor
 from PIL import Image
-
+from model2vec import StaticModel
 from scipy.cluster.hierarchy import linkage, fcluster
 
 if torch.cuda.is_available():
@@ -30,6 +30,7 @@ processor = ColQwen2Processor.from_pretrained(
     model_name, local_files_only=True, cache_dir="models_hub/"
 )
 
+static_model = StaticModel.load_local("models_hub/models--minishlab--potion-base-2M/snapshots/ed90dd52cd420507eef6f5f0c638e935b4e992c3")
 
 def pool_embeddings(embeddings: torch.Tensor, pool_factor: int = 3) -> List[List[float]]:
     """
@@ -154,6 +155,30 @@ def encode_query(queries: List[str]) -> Tuple[List[Dict[str, Any]], int]:
     return results, total_tokens
 
 
+def encode_passage(passages: List[str]) -> Tuple[List[Dict[str, Any]], int]:
+    """
+        Compute embeddings for one or more text passages.
+        Args:
+            passages
+                A list of text passages.
+        Returns:
+            an array of floats representing the embeddings of the input passages
+        Example in repo: passages = [
+        "This is a test passage.",
+        "This is another test passage.",
+    ]
+    """
+    embeddings = static_model.encode(passages)
+    # Count tokens
+    total_tokens = len(embeddings) * len(embeddings[0])
+
+    results = []
+    for idx, embedding in enumerate(embeddings):
+        embedding = embedding.tolist()
+        result = {"object": "embedding", "embedding": embedding, "index": idx}
+        results.append(result)
+    return results, total_tokens
+
 def handler(job: Dict[str, Any]) -> Dict[str, Any]:
     job_input = job["input"]
     # job_input is a dictionary with the following keys:
@@ -163,6 +188,8 @@ def handler(job: Dict[str, Any]) -> Dict[str, Any]:
         embeddings, total_tokens = encode_image(job_input["input_data"])
     elif job_input["task"] == "query":
         embeddings, total_tokens = encode_query(job_input["input_data"])
+    elif job_input["task"] == "passage":
+        embeddings, total_tokens = encode_passage(job_input["input_data"])
     else:
         raise ValueError(f"Invalid task: {job_input['task']}")
     
