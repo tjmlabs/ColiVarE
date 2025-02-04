@@ -24,7 +24,10 @@ uv pip compile builder/requirements.in -o builder/requirements.txt # uv is optio
 uv pip sync builder/requirements.txt
 ```
 
-6. Download the models from huggingface and save them in the `models_hub` directory before building. See src/download_models.py for more details.
+6. Download the models from huggingface and save them in the `models_hub` directory before building. See `src/download_models.py` for more details.
+```bash
+python3 src/download_models.py
+```
 
 7. Run the service locally using the following command.
 ```bash
