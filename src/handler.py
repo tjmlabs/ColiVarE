@@ -1,10 +1,9 @@
 import base64
 from io import BytesIO
 from typing import Any, Dict, List, Tuple
-
+from colpali_engine.models import ColIdefics3Processor, ColIdefics3
 import runpod
 import torch
-from colpali_engine.models import ColQwen2, ColQwen2Processor
 from PIL import Image
 
 from scipy.cluster.hierarchy import linkage, fcluster
@@ -16,8 +15,8 @@ elif torch.backends.mps.is_available():
 else:
     device_map = None
 
-model_name = "vidore/colqwen2-v1.0"
-model = ColQwen2.from_pretrained(
+model_name = "vidore/colSmol-256M"
+model = ColIdefics3.from_pretrained(
     model_name,
     local_files_only=True,
     cache_dir="models_hub/",
@@ -26,15 +25,17 @@ model = ColQwen2.from_pretrained(
 )
 
 
-processor = ColQwen2Processor.from_pretrained(
+processor = ColIdefics3Processor.from_pretrained(
     model_name, local_files_only=True, cache_dir="models_hub/"
 )
 
 
-def pool_embeddings(embeddings: torch.Tensor, pool_factor: int = 3) -> List[List[float]]:
+def pool_embeddings(
+    embeddings: torch.Tensor, pool_factor: int = 3
+) -> List[List[float]]:
     """
     Reduces number of embeddings by clustering similar ones together.
-    
+
     Args:
         embeddings: Single image embeddings of shape (1038, 128)
                    Example with 4 vectors, 3 dimensions for simplicity:
@@ -51,7 +52,7 @@ def pool_embeddings(embeddings: torch.Tensor, pool_factor: int = 3) -> List[List
     #  [0.0  0.0  1.0  1.0]]    # Token 4 compared to all tokens
     # High values (1.0) mean tokens are very similar
     similarities = torch.mm(embeddings, embeddings.t())
-    
+
     # Step 2: Convert to distances (1 - similarity)
     # For our example:
     # [[0.0  0.0  1.0  1.0],    # Now low values mean similar
@@ -59,19 +60,19 @@ def pool_embeddings(embeddings: torch.Tensor, pool_factor: int = 3) -> List[List
     #  [1.0  1.0  0.0  0.0],    # 1.0 = completely different
     #  [1.0  1.0  0.0  0.0]]
     distances = 1 - similarities.cpu().numpy()
-    
+
     # Step 3: Calculate target number of clusters
     # For our example with pool_factor=2:
     # 4 tokens → 2 clusters
     target_clusters = max(embeddings.shape[0] // pool_factor, 1)
-    
+
     # Step 4: Perform hierarchical clustering
     # This groups similar tokens together
     # For our example, cluster_labels would be:
     # [1, 1, 2, 2]  # Tokens 1&2 in cluster 1, Tokens 3&4 in cluster 2
     clusters = linkage(distances, method="ward")
     cluster_labels = fcluster(clusters, t=target_clusters, criterion="maxclust")
-    
+
     # Step 5: Average embeddings within each cluster
     # For our example:
     # Cluster 1 average = [1,0,1] and [1,0,1] → [1,0,1]
@@ -83,8 +84,9 @@ def pool_embeddings(embeddings: torch.Tensor, pool_factor: int = 3) -> List[List
         cluster_embeddings = embeddings[mask]
         cluster_mean = cluster_embeddings.mean(dim=0)
         pooled.append(cluster_mean.tolist())
-    
+
     return pooled
+
 
 def encode_image(input_data: List[str]) -> Tuple[List[Dict[str, Any]], int]:
     """
@@ -165,7 +167,7 @@ def handler(job: Dict[str, Any]) -> Dict[str, Any]:
         embeddings, total_tokens = encode_query(job_input["input_data"])
     else:
         raise ValueError(f"Invalid task: {job_input['task']}")
-    
+
     return {
         "object": "list",
         "data": embeddings,
