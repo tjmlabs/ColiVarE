@@ -43,46 +43,26 @@ def pool_embeddings(embeddings: torch.Tensor, pool_factor: int = 3) -> List[List
                     [0,1,0],
                     [0,1,0]]
     """
-    # Step 1: Calculate similarity between all vectors
-    # For our example above, this creates a 4x4 similarity matrix:
-    # [[1.0  1.0  0.0  0.0],    # Token 1 compared to all tokens (same, same, different, different)
-    #  [1.0  1.0  0.0  0.0],    # Token 2 compared to all tokens
-    #  [0.0  0.0  1.0  1.0],    # Token 3 compared to all tokens
-    #  [0.0  0.0  1.0  1.0]]    # Token 4 compared to all tokens
-    # High values (1.0) mean tokens are very similar
     similarities = torch.mm(embeddings, embeddings.t())
     
-    # Step 2: Convert to distances (1 - similarity)
-    # For our example:
-    # [[0.0  0.0  1.0  1.0],    # Now low values mean similar
-    #  [0.0  0.0  1.0  1.0],    # 0.0 = identical
-    #  [1.0  1.0  0.0  0.0],    # 1.0 = completely different
-    #  [1.0  1.0  0.0  0.0]]
     distances = 1 - similarities.cpu().numpy()
+    del similarities   
+    torch.cuda.empty_cache() 
     
-    # Step 3: Calculate target number of clusters
-    # For our example with pool_factor=2:
-    # 4 tokens → 2 clusters
     target_clusters = max(embeddings.shape[0] // pool_factor, 1)
-    
-    # Step 4: Perform hierarchical clustering
-    # This groups similar tokens together
-    # For our example, cluster_labels would be:
-    # [1, 1, 2, 2]  # Tokens 1&2 in cluster 1, Tokens 3&4 in cluster 2
+
     clusters = linkage(distances, method="ward")
     cluster_labels = fcluster(clusters, t=target_clusters, criterion="maxclust")
-    
-    # Step 5: Average embeddings within each cluster
-    # For our example:
-    # Cluster 1 average = [1,0,1] and [1,0,1] → [1,0,1]
-    # Cluster 2 average = [0,1,0] and [0,1,0] → [0,1,0]
-    # Final result: [[1,0,1], [0,1,0]]
+
     pooled = []
     for cluster_id in range(1, target_clusters + 1):
         mask = cluster_labels == cluster_id
         cluster_embeddings = embeddings[mask]
         cluster_mean = cluster_embeddings.mean(dim=0)
-        pooled.append(cluster_mean.tolist())
+
+        pooled.append(cluster_mean.cpu().tolist())  
+        del cluster_embeddings, cluster_mean
+        torch.cuda.empty_cache() 
     
     return pooled
 
@@ -108,17 +88,21 @@ def encode_image(input_data: List[str]) -> Tuple[List[Dict[str, Any]], int]:
         img = img.convert("RGB")
         images.append(img)
 
-    batch_images = processor.process_images(images).to(model.device)
-
     with torch.no_grad():
+        batch_images = processor.process_images(images).to(model.device)
         image_embeddings = model(**batch_images)
 
     results = []
     for idx, embedding in enumerate(image_embeddings):
         embedding = embedding.to(torch.float32)
         pooled = pool_embeddings(embedding)
+        del embedding
+        torch.cuda.empty_cache()
         result = {"object": "embedding", "embedding": pooled, "index": idx}
         results.append(result)
+    
+    del batch_images, image_embeddings
+    torch.cuda.empty_cache()
     # Compute total tokens
     total_tokens = len(results) * len(pooled)
     return results, total_tokens
@@ -151,6 +135,10 @@ def encode_query(queries: List[str]) -> Tuple[List[Dict[str, Any]], int]:
         embedding = embedding.to(torch.float32).detach().cpu().numpy().tolist()
         result = {"object": "embedding", "embedding": embedding, "index": idx}
         results.append(result)
+        del embedding
+        torch.cuda.empty_cache()
+    del batch_queries, query_embeddings
+    torch.cuda.empty_cache()
     return results, total_tokens
 
 
